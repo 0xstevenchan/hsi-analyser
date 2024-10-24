@@ -63,10 +63,7 @@ class StCbbc:
         return collection
     def select_date(self, collection):
         if len(collection.index) >= 252:
-            today = datetime.now().month
-            last = collection.index[-1].month
-            if today != last:
-                st.write('Not up to date')
+            last = collection.index[-1]
             date = st.sidebar.date_input('Choose Date', last, collection.index[252], last)
             date = datetime.combine(date, time.min)
             while date not in collection.index:
