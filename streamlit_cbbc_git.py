@@ -206,7 +206,8 @@ class StScore(StOhlcv):
         trade = pd.DataFrame(trade, columns=signs.columns, index=signs.index)
         return trade
     def get_score(self, pnl_table, trade, exposure):
-        pnl = pnl_table.sum()
+        year = 252 / (pnl_table.index[-1] - pnl_table.index[0]).days
+        pnl = pnl_table.sum() * year
         num_trade = trade.sum()        
         df = pd.concat([pnl, num_trade, exposure], axis=1)
         df.columns = ['score', 'trade', 'exposure']
@@ -265,7 +266,7 @@ class StScore(StOhlcv):
                 short = score.query(f'adjust_score < {-threshold} and action == True')['adjust_score'].sort_values().reset_index(drop=True).abs()
                 dont_long = score.query(f'adjust_score > {threshold} and action == False')['adjust_score'].sort_values(ascending=False).reset_index(drop=True)
                 dont_short = score.query(f'adjust_score < {-threshold} and action == False')['adjust_score'].sort_values().reset_index(drop=True).abs()
-                st.dataframe(sigma.tail(1))
+                st.dataframe(indicator.tail(1))
                 result = pd.concat([long, short, dont_long, dont_short], axis=1)
                 result.columns = ['Long', 'Short', 'Dont Long', 'Dont Short']
                 st.write('Larger value represents higher priority. Y axis for daily trading. X axis for monthly trading.')
