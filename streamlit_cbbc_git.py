@@ -65,7 +65,7 @@ class StCbbc:
         if len(collection.index) >= 252:
             today = datetime.now().date()
             last = collection.index[-1]
-            if last != today:
+            if last == today:
                 date = st.sidebar.date_input('Choose Date', last, collection.index[252], last)
                 date = datetime.combine(date, time.min)
                 while date not in collection.index:
