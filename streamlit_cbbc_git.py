@@ -62,11 +62,12 @@ class StCbbc:
             st.session_state[db_name][collection_name] = collection
         return collection
     def select_date(self, collection):
-        date = st.sidebar.date_input('Choose Date', collection.index[-1], collection.index[252], collection.index[-1])
-        date = datetime.combine(date, time.min)
-        while date not in collection.index:
-            date = date - timedelta(days=1)
-        return date
+        if len(collection.index) >= 252:
+            date = st.sidebar.date_input('Choose Date', collection.index[-1], collection.index[252], collection.index[-1])
+            date = datetime.combine(date, time.min)
+            while date not in collection.index:
+                date = date - timedelta(days=1)
+            return date
     def select_ma(self, dataframe=pd.DataFrame or pd.Series):
         if 'ma' in st.query_params:
             value = int(st.query_params['ma'])
@@ -247,30 +248,31 @@ class StScore(StOhlcv):
             benchmark = self.get_benchmark_open(ohlcv)
             indicator = self.get_collection(indicator_name, underlying)
             date = self.select_date(indicator)
-            self.show_t2(date, ohlcv, benchmark)
-            ohlcv = ohlcv.loc[:date]
-            self.show_candlestick('Line Chart', ohlcv)
-            indicator = indicator.loc[:date]
-            ma = self.get_ma(indicator, self.WINDOWS)
-            sigma = self.get_sigma(ma, self.sigma_multiplier)
-            sign = self.get_sigma_sign(sigma)
-            last = self.get_sign_of_last(sign)
-            exposure = last.sum() / len(last.index)
-            pnl_table = self.get_pnl_table(benchmark, last)
-
-            if not pnl_table.empty:
-                trade = self.get_trade(last)
-                score = self.get_score(pnl_table, trade, exposure)
-                threshold = abs(benchmark.sum())
-                long = score.query(f'adjust_score > {threshold} and action == True')['adjust_score'].sort_values(ascending=False).reset_index(drop=True)
-                short = score.query(f'adjust_score < {-threshold} and action == True')['adjust_score'].sort_values().reset_index(drop=True).abs()
-                dont_long = score.query(f'adjust_score > {threshold} and action == False')['adjust_score'].sort_values(ascending=False).reset_index(drop=True)
-                dont_short = score.query(f'adjust_score < {-threshold} and action == False')['adjust_score'].sort_values().reset_index(drop=True).abs()
-                st.dataframe(indicator.tail(1))
-                result = pd.concat([long, short, dont_long, dont_short], axis=1)
-                result.columns = ['Long', 'Short', 'Dont Long', 'Dont Short']
-                st.write('Larger value represents higher priority. Y axis for daily trading. X axis for monthly trading.')
-                st.line_chart(result)
+            if date is not None:
+                self.show_t2(date, ohlcv, benchmark)
+                ohlcv = ohlcv.loc[:date]
+                self.show_candlestick('Line Chart', ohlcv)
+                indicator = indicator.loc[:date]
+                ma = self.get_ma(indicator, self.WINDOWS)
+                sigma = self.get_sigma(ma, self.sigma_multiplier)
+                sign = self.get_sigma_sign(sigma)
+                last = self.get_sign_of_last(sign)
+                exposure = last.sum() / len(last.index)
+                pnl_table = self.get_pnl_table(benchmark, last)
+    
+                if not pnl_table.empty:
+                    trade = self.get_trade(last)
+                    score = self.get_score(pnl_table, trade, exposure)
+                    threshold = abs(benchmark.sum())
+                    long = score.query(f'adjust_score > {threshold} and action == True')['adjust_score'].sort_values(ascending=False).reset_index(drop=True)
+                    short = score.query(f'adjust_score < {-threshold} and action == True')['adjust_score'].sort_values().reset_index(drop=True).abs()
+                    dont_long = score.query(f'adjust_score > {threshold} and action == False')['adjust_score'].sort_values(ascending=False).reset_index(drop=True)
+                    dont_short = score.query(f'adjust_score < {-threshold} and action == False')['adjust_score'].sort_values().reset_index(drop=True).abs()
+                    st.dataframe(indicator.tail(1))
+                    result = pd.concat([long, short, dont_long, dont_short], axis=1)
+                    result.columns = ['Long', 'Short', 'Dont Long', 'Dont Short']
+                    st.write('Larger value represents higher priority. Y axis for daily trading. X axis for monthly trading.')
+                    st.line_chart(result)
 
 
 if __name__ == '__main__':
