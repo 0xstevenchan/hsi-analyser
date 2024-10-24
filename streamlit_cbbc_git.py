@@ -8,7 +8,7 @@ from my_module.my_script import *
 from my_module.my_mongodb import MongodbReaders, MongodbReader
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
-from datetime import time, timedelta
+from datetime import time, timedelta, datetime
 
 class StCbbc:
     def __init__(self):
@@ -63,11 +63,14 @@ class StCbbc:
         return collection
     def select_date(self, collection):
         if len(collection.index) >= 252:
-            date = st.sidebar.date_input('Choose Date', collection.index[-1], collection.index[252], collection.index[-1])
-            date = datetime.combine(date, time.min)
-            while date not in collection.index:
-                date = date - timedelta(days=1)
-            return date
+            today = datetime.now().date()
+            last = collection.index[-1]
+            if last != today:
+                date = st.sidebar.date_input('Choose Date', last, collection.index[252], last)
+                date = datetime.combine(date, time.min)
+                while date not in collection.index:
+                    date = date - timedelta(days=1)
+                return date
     def select_ma(self, dataframe=pd.DataFrame or pd.Series):
         if 'ma' in st.query_params:
             value = int(st.query_params['ma'])
