@@ -274,7 +274,8 @@ class StScore(StOhlcv):
                     if not result.empty:
                         result.columns = ['Long', 'Short', 'Dont Long', 'Dont Short']
                         st.write('Larger value represents higher priority. Y axis for daily trading. X axis for monthly trading.')
-                        st.line_chart(result)
+                        result['Total'] = result['Long'] - result['Short'] - result['Dont Long'] + result['Dont Short']
+                        st.line_chart(result['Total'])
 
 
 if __name__ == '__main__':
