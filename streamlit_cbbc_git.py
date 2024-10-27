@@ -17,6 +17,7 @@ class StCbbc:
         self.CONTENT_TITLE = 'HSI Analyser'
         self.CHART_TYPES = ['Line Chart', 'Table']
         self.N_COMPONENTS = 1
+        self.NUM_DIFFS = [0, 1, 2]
         self.mongodb_address = self.get_mongodb_address()
         st.session_state['dbs_underlyings'] = {}
     def get_mongodb_address(self):
@@ -39,7 +40,7 @@ class StCbbc:
                 index = options.index('HSI')
             else:
                 index = 0
-        option = st.sidebar.selectbox(f'Choose {str(key).capitalize()}', options, index, key=key)
+        option = st.sidebar.selectbox(f'Choose {str(key)}', options, index, key=key)
         return option
     def select_indicator_name(self):
         return self.select_item('indicator', self.INDICATORS_NAMES)
@@ -80,6 +81,16 @@ class StCbbc:
             return dataframe.rolling(int(ma)).mean()
         else:
             return dataframe
+    def select_diff(self, dataframe=pd.DataFrame or pd.Series):
+        n = self.select_item('Num Diff', self.NUM_DIFFS)
+        df = deepcopy(dataframe)
+        if n > 0:
+            while n > 0:
+                df = df.diff()
+                n -= 1
+            return df
+        else:
+            return df
     def get_pca(self, dataframe=pd.DataFrame):
         scaled_data = StandardScaler().fit_transform(dataframe)
         pca = PCA(n_components=self.N_COMPONENTS)
@@ -87,7 +98,7 @@ class StCbbc:
         pca_df = pd.DataFrame(data=pca_result, columns=[f'PCA{i}' for i in list(range(1, self.N_COMPONENTS+1))], index=dataframe.index)
         return pca_df
     def select_chart_type(self):
-        return self.select_item('chart_type', self.CHART_TYPES)
+        return self.select_item('Chart Type', self.CHART_TYPES)
     def show_chart(self, chart_type, collection):
         match chart_type:
             case 'Line Chart':
@@ -144,7 +155,6 @@ class StScore(StOhlcv):
     def __init__(self):
         super().__init__()
         self.WINDOWS = list(range(1, 20, 1))
-        self.sigma_multiplier = 0.5
     def get_ma(self, indicator, windows):
         df = deepcopy(indicator)
         dfs = []
@@ -162,7 +172,7 @@ class StScore(StOhlcv):
                 dfs.append(sub)
         df = pd.concat(dfs, axis=1).iloc[max(windows)-1:]
         return df
-    def get_sigma(self, indicator, multiply=1):
+    def get_std(self, indicator, multiply=1):
         i = deepcopy(indicator)
         df = i / i.std()
         df = df * multiply
@@ -172,8 +182,8 @@ class StScore(StOhlcv):
         df = np.sign(i)
         df = pd.DataFrame(df, columns=i.columns, index=i.index)
         return df
-    def get_sigma_sign(self, sigma):
-        i = deepcopy(sigma)
+    def get_std_sign(self, std):
+        i = deepcopy(std)
         df = np.where(i > 0, np.ceil(i), i)
         df = np.where(df < 0, np.floor(df), df)
         df = pd.DataFrame(df, columns=i.columns, index=i.index)
@@ -217,6 +227,8 @@ class StScore(StOhlcv):
         df['adjust_score'] = df['score'] + df['adjust']
         df['adjust_score'] = np.where(df['score'] / df['adjust_score'] >= 0, df['adjust_score'], 0)
         df['adjust_score'] = df['adjust_score'] / df['exposure']
+        df['abs_score'] = df['adjust_score'].abs()
+        df = df.sort_values(by='abs_score', ascending=False)
         df['action'] = np.where(pnl_table.iloc[-1] == 0, False, True)
         return df
     def get_result(self, adjust_score):
@@ -248,6 +260,8 @@ class StScore(StOhlcv):
         if ohlcv is not None:
             benchmark = self.get_benchmark_open(ohlcv)
             indicator = self.get_collection(indicator_name, underlying)
+            indicator = self.select_diff(indicator)
+            std_multiplier = self.select_item('STD Multiplier', [0.5, 1])
             date = self.select_date(indicator)
             if date is not None:
                 self.show_t2(date, ohlcv, benchmark)
@@ -255,8 +269,8 @@ class StScore(StOhlcv):
                 self.show_candlestick('Line Chart', ohlcv)
                 indicator = indicator.loc[:date]
                 ma = self.get_ma(indicator, self.WINDOWS)
-                sigma = self.get_sigma(ma, self.sigma_multiplier)
-                sign = self.get_sigma_sign(sigma)
+                std = self.get_std(ma, std_multiplier)
+                sign = self.get_std_sign(std)
                 last = self.get_sign_of_last(sign)
                 exposure = last.sum() / len(last.index)
                 pnl_table = self.get_pnl_table(benchmark, last)
@@ -270,13 +284,11 @@ class StScore(StOhlcv):
                     dont_long = score.query(f'adjust_score > {threshold} and action == False')['adjust_score'].sort_values(ascending=False).reset_index(drop=True)
                     dont_short = score.query(f'adjust_score < {-threshold} and action == False')['adjust_score'].sort_values().reset_index(drop=True).abs()
                     st.dataframe(indicator.tail(1))
-                    result = pd.concat([long, short, dont_long, dont_short], axis=1).fillna(0)
+                    result = pd.concat([long, short, dont_long, dont_short], axis=1)
                     if not result.empty:
                         result.columns = ['Long', 'Short', 'Dont Long', 'Dont Short']
                         st.write('Larger value represents higher priority. Y axis for daily trading. X axis for monthly trading.')
-                        result['Total'] = result['Long'] - result['Short'] - result['Dont Long'] + result['Dont Short']
-                        st.line_chart(result['Total'])
-
+                        st.line_chart(result)
 
 if __name__ == '__main__':
     
