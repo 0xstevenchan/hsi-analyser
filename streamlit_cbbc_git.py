@@ -283,11 +283,12 @@ class StScore(StOhlcv):
                     short = score.query(f'adjust_score < {-threshold} and action == True')['adjust_score'].sort_values().reset_index(drop=True).abs()
                     dont_long = score.query(f'adjust_score > {threshold} and action == False')['adjust_score'].sort_values(ascending=False).reset_index(drop=True)
                     dont_short = score.query(f'adjust_score < {-threshold} and action == False')['adjust_score'].sort_values().reset_index(drop=True).abs()
+                    st.link_button("Download Historical Data", "https://www.hkex.com.hk/eng/cbbc/download/dnfile.asp")
                     st.dataframe(indicator.tail(1))
                     result = pd.concat([long, short, dont_long, dont_short], axis=1)
                     if not result.empty:
                         result.columns = ['Long', 'Short', 'Dont Long', 'Dont Short']
-                        st.write('Larger value represents higher priority. Y axis for daily trading. X axis for monthly trading.')
+                        st.write('Larger value represents higher priority. Y axis for daily trading. X axis for monthly trading. Be care of large Y values due to lack of data')
                         st.line_chart(result)
 
 if __name__ == '__main__':
