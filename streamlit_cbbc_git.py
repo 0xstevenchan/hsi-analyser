@@ -289,7 +289,7 @@ class StScore(StOhlcv):
                     result = pd.concat([long, short, dont_long, dont_short], axis=1)
                     if not result.empty:
                         result.columns = ['Long', 'Short', 'Dont Long', 'Dont Short']
-                        st.write('Larger value represents higher priority. Y axis for daily trading. X axis for monthly trading. Be care of large Y values(>1) due to lack of data.')
+                        st.write('A larger value represents a higher priority. The Y-axis indicates daily trading, while the X-axis indicates monthly trading. Be cautious of large Y values (>1) due to a lack of data.')
                         st.line_chart(result)
 
 if __name__ == '__main__':
