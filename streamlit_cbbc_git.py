@@ -99,26 +99,30 @@ class StCbbc:
         return pca_df
     def select_chart_type(self):
         return self.select_item('Chart Type', self.CHART_TYPES)
-    def show_chart(self, chart_type, collection):
+    def show_cbbc(self, chart_type, collection):
         match chart_type:
             case 'Line Chart':
-                for i in collection:
-                    st.write(i)
-                    st.line_chart(collection[i])
+                collection.columns = list_to_multiindex(collection.columns)
+                dfs = collection.groupby(level=0, axis=1)
+                for _, i in dfs:
+                    i.columns = columns_to_strings(i.columns)
+                    colors = ['#d13728', '#ee923c', '#e6cc84', '#b0dac2', '#436b88']
+                    if len(i.columns) > 1:
+                        chosen = random.sample(colors, len(i.columns))
+                    else:
+                        chosen = random.sample(colors, 1)
+                    st.line_chart(i, color=chosen)
             case 'Table':
                 st.write(collection)
     def run(self):
         st.set_page_config(self.PAGE_TITLE, layout="wide")
-        st.markdown("""
-            #GithubIcon {visibility: hidden;}
-            """, unsafe_allow_html=True)
         st.title(self.CONTENT_TITLE)
         indicator_name = self.select_indicator_name()
         underlying = self.select_underlying(indicator_name)
         indicator = self.get_collection(indicator_name, underlying)
         indicator_ma = self.select_ma(indicator)
         chart_type = self.select_chart_type()
-        self.show_chart(chart_type, indicator_ma)
+        self.show_cbbc(chart_type, indicator_ma)
 class StOhlcv(StCbbc):
     def __init__(self):
         super().__init__()
